@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Device Watcher</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" />
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet" />
+    <link id="main-style" rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
+    <link id="retro-style" rel="stylesheet" href="{{ url_for('static', filename='retro.css') }}" />
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</head>
+
+<body>
+    <h1>Device Watcher</h1>
+    <div id="tabs">
+        <button class="tab-button active" data-tab="mainTab" onclick="switchTab('mainTab')">Overview</button>
+        <button class="tab-button" data-tab="apsTab" onclick="switchTab('apsTab')">Wi-Fi APs</button>
+        <button class="tab-button" data-tab="clientsTab" onclick="switchTab('clientsTab')">Clients</button>
+        <button class="tab-button" data-tab="activityTab" onclick="switchTab('activityTab')">Activity</button>
+        <button class="tab-button" data-tab="graphView" onclick="switchTab('graphView')">Wi-Fi Graph</button>
+        <button class="tab-button" data-tab="bluetoothTab" onclick="switchTab('bluetoothTab')">Bluetooth</button>
+        <button class="tab-button" data-tab="bleTab" onclick="switchTab('bleTab')">BLE</button>
+        <button class="tab-button" data-tab="BLEgraphView" onclick="switchTab('BLEgraphView')">BT/BLE Graph</button>
+
+
+    </div>
+    <div style="position: fixed; top: 18px; right: 24px; z-index: 101; display: flex; gap: 10px;">
+        <button id="refreshButton" onclick="fetchData()">Refresh</button>
+    </div>
+
+    <div id="mainTab" class="tab-content active">
+        <div id="generalInfo"></div>
+        <div id="miniStatsBar"></div>
+    </div>
+
+    <div id="apsTab" class="tab-content">
+        <h2>Wi-Fi Access Points</h2>
+        <table id="apsTable">
+            <thead>
+                <tr>
+                    <th>MAC</th>
+                    <th>SSID(s)</th>
+                    <th>Vendor(s)</th>
+                    <th>Signal(s)</th>
+                    <th>Channel(s)</th>
+                    <th>Security</th>
+                </tr>
+            </thead>
+            <tbody id="apsTableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="clientsTab" class="tab-content">
+        <h2>Clients</h2>
+        <table id="clientsTable">
+            <thead>
+                <tr>
+                    <th>MAC</th>
+                    <th>Vendor(s)</th>
+                    <th>Signal(s)</th>
+                    <th>AP(s)</th>
+                    <th>Packets</th>
+                </tr>
+            </thead>
+            <tbody id="clientsTableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="activityTab" class="tab-content">
+        <h2>Device Activity</h2>
+        <canvas id="activityChart" style="max-width:800px; max-height:400px;"></canvas>
+    </div>
+
+    <div id="graphView" class="tab-content">
+        <h2>Wi-Fi Network Graph</h2>
+        <div id="wifi-legend" style="margin-bottom:10px;"></div>
+        <div class="zoom-controls">
+            <button onclick="zoomInWifi()">Zoom In</button>
+            <button onclick="zoomOutWifi()">Zoom Out</button>
+        </div>
+        <div id="networkGraph"></div>
+    </div>
+
+    <div id="bluetoothTab" class="tab-content">
+        <h2>Bluetooth Devices</h2>
+        <table id="bluetoothTable">
+            <thead>
+                <tr>
+                    <th>Name(s)</th>
+                    <th>MAC</th>
+                    <th>Signal(s)</th>
+                    <th>Vendor(s)</th>
+                </tr>
+            </thead>
+            <tbody id="bluetoothTableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="bleTab" class="tab-content">
+        <h2>BLE Devices</h2>
+        <table id="bleTable">
+            <thead>
+                <tr>
+                    <th>MAC</th>
+                    <th>Signal(s)</th>
+                    <th>Vendor(s)</th>
+                </tr>
+            </thead>
+            <tbody id="bleTableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="BLEgraphView" class="tab-content">
+        <h2>BT/BLE Graph</h2>
+        <div id="ble-legend" style="margin-bottom:10px;"></div>
+        <div class="zoom-controls">
+            <button onclick="zoomInBluetooth()">Zoom In</button>
+            <button onclick="zoomOutBluetooth()">Zoom Out</button>
+        </div>
+        <div id="BLEGraph"></div>
+    </div>
+    <!-- Toggle Button -->
+    <div style="position: fixed; bottom: 18px; right: 24px; z-index: 101;">
+        <button id="retroToggleBtn" onclick="toggleRetroStyle()"
+            style="padding:10px 22px;font-weight:700;border-radius:6px;border:1px solid #2563eb;background:#fff;color:#2563eb;cursor:pointer;transition:background 0.2s;">Switch
+            to Retro Style</button>
+    </div>
+</body>
+
+</html>
