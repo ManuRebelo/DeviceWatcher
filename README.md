@@ -1,6 +1,6 @@
 # DeviceWatcher
 
-A Flask-based dashboard that monitors and visualises Wi-Fi, Bluetooth Classic, and BLE (Bluetooth Low Energy) interfaces in real time. Detected devices are stored in a local SQLite database and displayed in an AdminLTE web dashboard with interactive network graphs.
+DeviceWatcher is a passive RF monitoring platform that captures and correlates devices across Wi-Fi (802.11), Bluetooth Classic, and BLE simultaneously. It parses deep protocol metadata — 802.11 information elements, BLE manufacturer advertisements, Bluetooth Class of Device — and stores observations in a local SQLite database. An AdminLTE dashboard presents the data in real time through sortable device tables, vis.js network topology graphs, Chart.js signal timelines, and an analytics engine that estimates device proximity, generates occupancy histograms, detects security threats, and clusters cross-protocol device identities.
 
 ## Features
 
