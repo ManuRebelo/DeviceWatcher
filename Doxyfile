@@ -1,0 +1,109 @@
+# Doxyfile — DeviceWatcher API documentation configuration
+# Run:  doxygen Doxyfile
+# Output lands in docs/html/index.html
+
+#---------------------------------------------------------------------------
+# Project
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "DeviceWatcher"
+PROJECT_BRIEF          = "Passive Wi-Fi / Bluetooth / BLE network monitoring dashboard"
+PROJECT_LOGO           =
+OUTPUT_DIRECTORY       = docs
+OUTPUT_LANGUAGE        = English
+
+#---------------------------------------------------------------------------
+# Input
+#---------------------------------------------------------------------------
+INPUT                  = . README.md
+FILE_PATTERNS          = *.py
+RECURSIVE              = YES
+# Exclude generated artefacts, vendored assets, and runtime data
+EXCLUDE                = docs \
+                         static \
+                         templates \
+                         data \
+                         venv \
+                         env \
+                         __pycache__
+EXCLUDE_PATTERNS       = */__pycache__/* \
+                         */.git/* \
+                         */node_modules/*
+EXTENSION_MAPPING      = py=Python
+
+# Use README.md as the landing page
+USE_MDFILE_AS_MAINPAGE = README.md
+
+#---------------------------------------------------------------------------
+# Extraction
+#---------------------------------------------------------------------------
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+
+#---------------------------------------------------------------------------
+# Python-specific
+#---------------------------------------------------------------------------
+# OPTIMIZE_OUTPUT_JAVA improves Doxygen's handling of Python docstrings and
+# @param / @return tags; there is no dedicated OPTIMIZE_OUTPUT_PYTHON flag
+# in most Doxygen releases shipped by Debian/Ubuntu.
+OPTIMIZE_OUTPUT_JAVA   = YES
+
+#---------------------------------------------------------------------------
+# Source browsing
+#---------------------------------------------------------------------------
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+#---------------------------------------------------------------------------
+# HTML output
+#---------------------------------------------------------------------------
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_TIMESTAMP         = YES
+HTML_DYNAMIC_SECTIONS  = YES
+GENERATE_TREEVIEW      = YES
+TREEVIEW_WIDTH         = 250
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+ALPHABETICAL_INDEX     = YES
+
+#---------------------------------------------------------------------------
+# Disable formats we don't need
+#---------------------------------------------------------------------------
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_XML           = NO
+GENERATE_DOCBOOK       = NO
+
+#---------------------------------------------------------------------------
+# Graphs (requires graphviz / dot)
+#---------------------------------------------------------------------------
+HAVE_DOT               = YES
+DOT_NUM_THREADS        = 0
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+GRAPHICAL_HIERARCHY    = YES
+DIRECTORY_GRAPH        = YES
+DOT_GRAPH_MAX_NODES    = 50
+MAX_DOT_GRAPH_DEPTH    = 0
+DOT_TRANSPARENT        = YES
+
+#---------------------------------------------------------------------------
+# Warnings
+#---------------------------------------------------------------------------
+QUIET                  = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+WARN_FORMAT            = "$file:$line: $text"

@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.git/
+.gitignore
+.claude/
+docs/
+images/
+device_watcher_data.db*
+devicedbback.db
+*.log

@@ -1,134 +1,991 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Device Watcher</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" />
-    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet" />
-    <link id="main-style" rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
-    <link id="retro-style" rel="stylesheet" href="{{ url_for('static', filename='retro.css') }}" />
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Device Watcher</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/fontawesome-free/css/all.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/vis-4.21.0.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+  <style>
+    @keyframes pulse-red {
+      0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+      70% { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+    }
+    .badge-live {
+      background-color: #dc3545;
+      color: white;
+      animation: pulse-red 2s infinite;
+    }
+    .scene-tooltip {
+      background-color: rgba(255, 255, 255, 0.9) !important;
+      color: #000 !important;
+      padding: 8px 12px !important;
+      border-radius: 4px !important;
+      font-size: 14px !important;
+      font-weight: bold !important;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+      z-index: 9999 !important;
+      pointer-events: none !important;
+    }
+    @keyframes lf-fade-in {
+      from { opacity: 0; transform: translateX(-6px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+  </style>
 </head>
+<body class="hold-transition sidebar-mini layout-fixed">
+<div class="wrapper">
 
-<body>
-    <h1>Device Watcher</h1>
-    <div id="tabs">
-        <button class="tab-button active" data-tab="mainTab" onclick="switchTab('mainTab')">Overview</button>
-        <button class="tab-button" data-tab="apsTab" onclick="switchTab('apsTab')">Wi-Fi APs</button>
-        <button class="tab-button" data-tab="clientsTab" onclick="switchTab('clientsTab')">Clients</button>
-        <button class="tab-button" data-tab="activityTab" onclick="switchTab('activityTab')">Activity</button>
-        <button class="tab-button" data-tab="graphView" onclick="switchTab('graphView')">Wi-Fi Graph</button>
-        <button class="tab-button" data-tab="bluetoothTab" onclick="switchTab('bluetoothTab')">Bluetooth</button>
-        <button class="tab-button" data-tab="bleTab" onclick="switchTab('bleTab')">BLE</button>
-        <button class="tab-button" data-tab="BLEgraphView" onclick="switchTab('BLEgraphView')">BT/BLE Graph</button>
+  <!-- Navbar -->
+  <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+      </li>
+    </ul>
+    <ul class="navbar-nav ml-auto">
+      <li class="nav-item mr-3 d-flex align-items-center" id="ifaceStatusBar"></li>
+      <li class="nav-item mr-2">
+        <div class="btn-group">
+            <button class="btn btn-sm btn-outline-info" id="btnHoppingToggle" onclick="toggleChannelHopping()">
+                <i class="fas fa-satellite-dish mr-1"></i> Hopping: ON
+            </button>
+            <button class="btn btn-sm btn-outline-info" id="btnHoppingChannel" onclick="promptSetChannel()">
+                CH: Auto
+            </button>
+        </div>
+      </li>
+      <li class="nav-item mr-2">
+        <button class="btn btn-sm btn-success" onclick="fetchData()">
+          <i class="fas fa-sync-alt mr-1"></i> Refresh
+        </button>
+      </li>
+      <li class="nav-item mr-2">
+        <button class="btn btn-sm btn-warning" onclick="clearInactive()">
+          <i class="fas fa-broom mr-1"></i> Clear Inactive
+        </button>
+      </li>
+      <li class="nav-item mr-2 d-none" id="externalApiBadge">
+        <span class="badge badge-info mt-1" style="font-size: 0.9em;"><i class="fas fa-cloud mr-1"></i> API Lookup</span>
+      </li>
+      <li class="nav-item">
+        <button id="nightModeBtn" class="btn btn-sm btn-outline-secondary" onclick="toggleNightMode()">
+          <i class="fas fa-moon mr-1"></i> Night Mode
+        </button>
+      </li>
+    </ul>
+  </nav>
 
+  <!-- Sidebar -->
+  <aside class="main-sidebar sidebar-dark-primary elevation-4">
+    <a href="/" class="brand-link">
+      <i class="fas fa-satellite-dish brand-image" style="font-size:1.6rem;margin:6px 14px;opacity:.85;float:left;"></i>
+      <span class="brand-text font-weight-bold">DeviceWatcher</span>
+    </a>
+    <div class="sidebar">
+      <nav class="mt-2">
+        <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
 
+          <li class="nav-item">
+            <a href="#" class="nav-link active" onclick="switchSection('overview'); return false;">
+              <i class="nav-icon fas fa-tachometer-alt"></i>
+              <p>Overview</p>
+            </a>
+          </li>
+
+          <!-- Wi-Fi -->
+          <li class="nav-item has-treeview" id="nav-group-wifi">
+            <a href="#" class="nav-link">
+              <i class="nav-icon fas fa-wifi"></i>
+              <p>Wi-Fi <i class="right fas fa-angle-left"></i></p>
+            </a>
+            <ul class="nav nav-treeview">
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('aps'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Access Points</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('clients'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Clients</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('probessids'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Probe SSIDs</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('assocmap'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Assoc. Map</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('wifigraph'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Network Graph</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('spectrum'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Channel Spectrum</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('timeline'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Signal Timeline</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('activity'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Activity</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('livefeed'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Live Packet Feed</p>
+                </a>
+              </li>
+            </ul>
+          </li>
+
+          <!-- Bluetooth -->
+          <li class="nav-item has-treeview" id="nav-group-bluetooth">
+            <a href="#" class="nav-link">
+              <i class="nav-icon fab fa-bluetooth-b"></i>
+              <p>Bluetooth <i class="right fas fa-angle-left"></i></p>
+            </a>
+            <ul class="nav nav-treeview">
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('bluetooth'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Classic</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('ble'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>BLE Devices</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('bleinspector'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>BLE Inspector</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('blegraph'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>BT/BLE Graph</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('bttimeline'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Signal Timeline</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('proximity'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Proximity</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('presence'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Presence</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('btanalytics'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Analytics</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('btlivefeed'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Live Feed</p>
+                </a>
+              </li>
+            </ul>
+          </li>
+
+          <!-- Analytics -->
+          <li class="nav-item has-treeview" id="nav-group-analytics">
+            <a href="#" class="nav-link">
+              <i class="nav-icon fas fa-chart-pie"></i>
+              <p>Analytics <i class="right fas fa-angle-left"></i></p>
+            </a>
+            <ul class="nav nav-treeview">
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('occupancy'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Occupancy</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('radar'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>3D Network Map</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('clusters'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Entities</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('security'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>Security Posture</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link" onclick="switchSection('iot'); return false;">
+                  <i class="far fa-circle nav-icon"></i><p>IoT Sensors</p>
+                </a>
+              </li>
+            </ul>
+          </li>
+
+          <!-- Settings -->
+          <li class="nav-item">
+            <a href="#" class="nav-link" onclick="switchSection('settings'); return false;">
+              <i class="nav-icon fas fa-cog"></i>
+              <p>Settings</p>
+            </a>
+          </li>
+
+        </ul>
+      </nav>
     </div>
-    <div style="position: fixed; top: 18px; right: 24px; z-index: 101; display: flex; gap: 10px;">
-        <button id="refreshButton" onclick="fetchData()">Refresh</button>
+  </aside>
+
+  <!-- Content Wrapper -->
+  <div class="content-wrapper">
+
+    <!-- OVERVIEW -->
+    <div id="section-overview" class="dw-section">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Overview</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="row" id="generalInfo"></div>
+        <div class="row" id="miniStatsBar"></div>
+      </div></div>
     </div>
 
-    <div id="mainTab" class="tab-content active">
-        <div id="generalInfo"></div>
-        <div id="miniStatsBar"></div>
-    </div>
-
-    <div id="apsTab" class="tab-content">
-        <h2>Wi-Fi Access Points</h2>
-        <table id="apsTable">
-            <thead>
-                <tr>
-                    <th>MAC</th>
-                    <th>SSID(s)</th>
-                    <th>Vendor(s)</th>
-                    <th>Signal(s)</th>
-                    <th>Channel(s)</th>
-                    <th>Security</th>
-                </tr>
-            </thead>
+    <!-- WI-FI APs -->
+    <div id="section-aps" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Wi-Fi Access Points</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body">
+          <table id="apsTable" class="table table-bordered table-striped table-hover">
+            <thead><tr>
+              <th>MAC</th>
+              <th>SSID(s)</th>
+              <th>Vendor(s)</th>
+              <th>Type</th>
+              <th>Signal(s)</th>
+              <th>Channel(s)</th>
+              <th>Band(s)</th>
+              <th>Security</th>
+              <th>Chan. Width</th>
+              <th>Gen</th>
+              <th>Streams</th>
+              <th>Country</th>
+              <th>Load</th>
+              <th>PMF</th>
+              <th>First Seen</th>
+              <th>Last Seen</th>
+              <th>Action</th>
+            </tr></thead>
             <tbody id="apsTableBody"></tbody>
-        </table>
+          </table>
+        </div></div>
+      </div></div>
     </div>
 
-    <div id="clientsTab" class="tab-content">
-        <h2>Clients</h2>
-        <table id="clientsTable">
-            <thead>
-                <tr>
-                    <th>MAC</th>
-                    <th>Vendor(s)</th>
-                    <th>Signal(s)</th>
-                    <th>AP(s)</th>
-                    <th>Packets</th>
-                </tr>
-            </thead>
+    <!-- CLIENTS -->
+    <div id="section-clients" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Clients</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body">
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input" id="hideRandomMac">
+            <label class="form-check-label" for="hideRandomMac">Hide devices with randomized MAC</label>
+          </div>
+          <table id="clientsTable" class="table table-bordered table-striped table-hover">
+            <thead><tr>
+              <th>MAC</th>
+              <th>Vendor(s)</th>
+              <th>Type</th>
+              <th>Signal(s)</th>
+              <th>AP(s)</th>
+              <th>Packets</th>
+              <th>First Seen</th>
+              <th>Last Seen</th>
+              <th>Action</th>
+            </tr></thead>
             <tbody id="clientsTableBody"></tbody>
-        </table>
+          </table>
+        </div></div>
+      </div></div>
     </div>
 
-    <div id="activityTab" class="tab-content">
-        <h2>Device Activity</h2>
-        <canvas id="activityChart" style="max-width:800px; max-height:400px;"></canvas>
+    <!-- PROBE SSIDs -->
+    <div id="section-probessids" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Probe SSIDs</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body">
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input" id="hideRandomMacProbe">
+            <label class="form-check-label" for="hideRandomMacProbe">Hide devices with randomized MAC</label>
+          </div>
+          <table id="probeSSIDsTable" class="table table-bordered table-striped table-hover">
+            <thead><tr>
+              <th>Client MAC</th>
+              <th>Vendor</th>
+              <th>Probed SSID</th>
+              <th>Channel</th>
+              <th>Last Seen</th>
+            </tr></thead>
+            <tbody id="probeSSIDsTableBody"></tbody>
+          </table>
+        </div></div>
+      </div></div>
     </div>
 
-    <div id="graphView" class="tab-content">
-        <h2>Wi-Fi Network Graph</h2>
-        <div id="wifi-legend" style="margin-bottom:10px;"></div>
-        <div class="zoom-controls">
-            <button onclick="zoomInWifi()">Zoom In</button>
-            <button onclick="zoomOutWifi()">Zoom Out</button>
-        </div>
-        <div id="networkGraph"></div>
+    <!-- ACTIVITY -->
+    <div id="section-activity" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Device Activity</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body"><canvas id="activityChart"></canvas></div></div>
+      </div></div>
     </div>
 
-    <div id="bluetoothTab" class="tab-content">
-        <h2>Bluetooth Devices</h2>
-        <table id="bluetoothTable">
-            <thead>
-                <tr>
-                    <th>Name(s)</th>
-                    <th>MAC</th>
-                    <th>Signal(s)</th>
-                    <th>Vendor(s)</th>
-                </tr>
-            </thead>
+    <!-- WI-FI GRAPH -->
+    <div id="section-wifigraph" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Wi-Fi Network Graph</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body">
+          <div id="wifi-legend" class="mb-2"></div>
+          <div class="mb-2 d-flex flex-wrap align-items-center gap-1">
+            <button class="btn btn-sm btn-success mr-1" onclick="zoomInWifi()"><i class="fas fa-search-plus mr-1"></i>Zoom In</button>
+            <button class="btn btn-sm btn-success mr-1" onclick="zoomOutWifi()"><i class="fas fa-search-minus mr-1"></i>Zoom Out</button>
+            <button class="btn btn-sm btn-primary mr-1" onclick="fitWifi()"><i class="fas fa-expand mr-1"></i>Fit</button>
+            <button id="wifiLayoutBtn" class="btn btn-sm btn-secondary mr-2" onclick="toggleWifiLayout()"><i class="fas fa-sitemap mr-1"></i>Hierarchical</button>
+            <div class="form-check form-check-inline mb-0">
+              <input class="form-check-input" type="checkbox" id="graphHideRandomMac" onchange="onGraphHideRandomMacChange()">
+              <label class="form-check-label small" for="graphHideRandomMac">Hide random MACs</label>
+            </div>
+          </div>
+          <div class="position-relative">
+            <div id="networkGraph" class="dw-graph"></div>
+            <div id="networkGraphOverlay" class="dw-graph-overlay d-flex align-items-center justify-content-center">
+              <div class="text-center text-muted">
+                <i class="fas fa-spinner fa-spin fa-3x"></i>
+                <p class="mt-2">Building graph…</p>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </div>
+
+    <!-- BLUETOOTH -->
+    <div id="section-bluetooth" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Bluetooth Devices</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body">
+          <table id="bluetoothTable" class="table table-bordered table-striped table-hover">
+            <thead><tr>
+              <th>Name(s)</th>
+              <th>MAC</th>
+              <th>Signal(s)</th>
+              <th>Vendor(s)</th>
+              <th>Type</th>
+              <th>BT Ver.</th>
+              <th>Services</th>
+              <th>First Seen</th>
+              <th>Last Seen</th>
+              <th>Action</th>
+            </tr></thead>
             <tbody id="bluetoothTableBody"></tbody>
-        </table>
+          </table>
+        </div></div>
+      </div></div>
     </div>
 
-    <div id="bleTab" class="tab-content">
-        <h2>BLE Devices</h2>
-        <table id="bleTable">
-            <thead>
-                <tr>
-                    <th>MAC</th>
-                    <th>Signal(s)</th>
-                    <th>Vendor(s)</th>
-                </tr>
-            </thead>
+    <!-- BLE -->
+    <div id="section-ble" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">BLE Devices</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body">
+          <table id="bleTable" class="table table-bordered table-striped table-hover">
+            <thead><tr>
+              <th>MAC</th>
+              <th>Name(s)</th>
+              <th>Signal(s)</th>
+              <th>TX Pwr</th>
+              <th>Vendor(s)</th>
+              <th>Type</th>
+              <th>First Seen</th>
+              <th>Last Seen</th>
+              <th>Action</th>
+            </tr></thead>
             <tbody id="bleTableBody"></tbody>
-        </table>
+          </table>
+        </div></div>
+      </div></div>
     </div>
 
-    <div id="BLEgraphView" class="tab-content">
-        <h2>BT/BLE Graph</h2>
-        <div id="ble-legend" style="margin-bottom:10px;"></div>
-        <div class="zoom-controls">
-            <button onclick="zoomInBluetooth()">Zoom In</button>
-            <button onclick="zoomOutBluetooth()">Zoom Out</button>
+    <!-- BT/BLE GRAPH -->
+    <div id="section-blegraph" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">BT/BLE Graph</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body">
+          <div id="ble-legend" class="mb-2"></div>
+          <div class="mb-2">
+            <button class="btn btn-sm btn-success mr-1" onclick="zoomInBluetooth()"><i class="fas fa-search-plus mr-1"></i>Zoom In</button>
+            <button class="btn btn-sm btn-success mr-1" onclick="zoomOutBluetooth()"><i class="fas fa-search-minus mr-1"></i>Zoom Out</button>
+            <button class="btn btn-sm btn-primary" onclick="fitBluetooth()"><i class="fas fa-expand mr-1"></i>Fit</button>
+          </div>
+          <div class="position-relative">
+            <div id="BLEGraph" class="dw-graph"></div>
+            <div id="BLEGraphOverlay" class="dw-graph-overlay d-flex align-items-center justify-content-center">
+              <div class="text-center text-muted">
+                <i class="fas fa-spinner fa-spin fa-3x"></i>
+                <p class="mt-2">Building graph…</p>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </div>
+
+    <!-- CHANNEL SPECTRUM -->
+    <div id="section-spectrum" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Channel Spectrum</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="row">
+          <div class="col-lg-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fas fa-wave-square mr-2"></i>2.4 GHz Band</h3></div>
+              <div class="card-body"><canvas id="spectrumChart24"></canvas></div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fas fa-wave-square mr-2"></i>5 GHz Band</h3></div>
+              <div class="card-body"><canvas id="spectrumChart5"></canvas></div>
+            </div>
+          </div>
         </div>
-        <div id="BLEGraph"></div>
+      </div></div>
     </div>
-    <!-- Toggle Button -->
-    <div style="position: fixed; bottom: 18px; right: 24px; z-index: 101;">
-        <button id="retroToggleBtn" onclick="toggleRetroStyle()"
-            style="padding:10px 22px;font-weight:700;border-radius:6px;border:1px solid #2563eb;background:#fff;color:#2563eb;cursor:pointer;transition:background 0.2s;">Switch
-            to Retro Style</button>
-    </div>
-</body>
 
+    <!-- ASSOCIATION MAP -->
+    <div id="section-assocmap" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Association Map</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body" id="assocMapContainer"><p class="text-muted">Loading…</p></div></div>
+      </div></div>
+    </div>
+
+    <!-- SIGNAL TIMELINE -->
+    <div id="section-timeline" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Signal Timeline</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Access Points</h3>
+            <div class="card-tools"><span class="text-muted small" id="timelineLastUpdate"></span></div>
+          </div>
+          <div class="card-body"><canvas id="timelineChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Clients</h3></div>
+          <div class="card-body"><canvas id="timelineClientsChart"></canvas></div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- BT SIGNAL TIMELINE -->
+    <div id="section-bttimeline" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Bluetooth Signal Timeline</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Signal Strength Over Time (BT Classic &amp; BLE)</h3>
+            <div class="card-tools"><span class="text-muted small" id="timelineBtLastUpdate"></span></div>
+          </div>
+          <div class="card-body"><canvas id="timelineBtChart"></canvas></div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- BT ANALYTICS -->
+    <div id="section-btanalytics" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Bluetooth Analytics</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="row">
+          <div class="col-lg-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fab fa-bluetooth-b mr-2"></i>BT Classic – Device Types</h3></div>
+              <div class="card-body"><canvas id="chartBtType"></canvas></div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fab fa-bluetooth-b mr-2"></i>BT Classic – Vendors</h3></div>
+              <div class="card-body"><canvas id="chartBtVendor"></canvas></div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fas fa-broadcast-tower mr-2"></i>BLE – Device Types</h3></div>
+              <div class="card-body"><canvas id="chartBleType"></canvas></div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fas fa-broadcast-tower mr-2"></i>BLE – Vendors</h3></div>
+              <div class="card-body"><canvas id="chartBleVendor"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- PROXIMITY CHART -->
+    <div id="section-proximity" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Device Proximity</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Signal Proximity Map</h3>
+            <div class="card-tools d-flex align-items-center">
+              <span class="badge mr-1" style="background:#22c55e">≥ −50 dBm</span>
+              <span class="badge mr-1" style="background:#84cc16">≥ −65</span>
+              <span class="badge mr-1" style="background:#f59e0b">≥ −75</span>
+              <span class="badge mr-1" style="background:#f97316">≥ −85</span>
+              <span class="badge mr-1" style="background:#ef4444">&lt; −85</span>
+            </div>
+          </div>
+          <div class="card-body"><canvas id="proximityChart" style="max-height:520px"></canvas></div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- DEVICE PRESENCE -->
+    <div id="section-presence" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Device Presence Timeline</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">First/Last Seen Gantt</h3>
+            <div class="card-tools">
+              <span class="badge" style="background:#2563eb">BT Classic</span>
+              <span class="badge ml-1" style="background:#10b981">BLE</span>
+            </div>
+          </div>
+          <div class="card-body"><canvas id="presenceChart"></canvas></div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- BLE INSPECTOR -->
+    <div id="section-bleinspector" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">BLE Inspector</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div id="bleInspectorContainer"><p class="text-muted">Loading…</p></div>
+      </div></div>
+    </div>
+
+    <!-- 3D NETWORK MAP -->
+    <div id="section-radar" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">3D Network Map</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card">
+          <div class="card-header py-2">
+            <div class="form-check form-check-inline mb-0">
+              <input class="form-check-input" type="checkbox" id="map3dHideRandomMac" onchange="on3DMapHideRandomMacChange()">
+              <label class="form-check-label small" for="map3dHideRandomMac">Hide random MACs</label>
+            </div>
+          </div>
+          <div class="card-body" style="padding: 0; overflow: hidden; background-color: #111;">
+            <div id="3d-graph" style="width: 100%; height: 70vh;"></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- CLUSTERS -->
+    <div id="section-clusters" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Entities (Clustered Devices)</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div id="clusters-controls" class="mb-3"></div>
+        <div class="card"><div class="card-body" id="clustersContainer"><p class="text-muted">Loading...</p></div></div>
+      </div></div>
+    </div>
+
+    <!-- OCCUPANCY -->
+    <div id="section-occupancy" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Occupancy & Behavioral Rhythms</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body">
+            <canvas id="occupancyChart" style="max-height: 400px"></canvas>
+        </div></div>
+      </div></div>
+    </div>
+
+    <!-- SECURITY -->
+    <div id="section-security" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Security Posture</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body" id="securityContainer"><p class="text-muted">Loading...</p></div></div>
+      </div></div>
+    </div>
+
+    <!-- IOT SENSORS -->
+    <div id="section-iot" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">IoT Sensors Telemetry</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card"><div class="card-body">
+            <table id="iotTable" class="table table-bordered table-striped table-hover">
+            <thead><tr>
+              <th>MAC</th>
+              <th>Brand</th>
+              <th>Type</th>
+              <th>Decoded Metrics</th>
+            </tr></thead>
+            <tbody id="iotTableBody"></tbody>
+          </table>
+        </div></div>
+      </div></div>
+    </div>
+
+    <!-- LIVE PACKET FEED -->
+    <div id="section-livefeed" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid">
+        <div class="d-flex align-items-center justify-content-between">
+          <h1 class="m-0"><i class="fas fa-wave-square mr-2" style="color:#10b981"></i>Live Packet Feed</h1>
+          <div class="d-flex align-items-center">
+            <button id="livefeed-pause-btn" class="btn btn-sm btn-warning mr-2" onclick="toggleLiveFeedPause()">
+              <i class="fas fa-pause mr-1"></i>Pause
+            </button>
+            <button class="btn btn-sm btn-danger mr-2" onclick="clearLiveFeed()">
+              <i class="fas fa-trash mr-1"></i>Clear
+            </button>
+            <span class="badge badge-secondary" id="livefeed-count-badge" style="font-size:0.85rem">0 pkts</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card" style="background:#0d1117; border:1px solid #21262d;">
+          <!-- Filter bar -->
+          <div class="card-header" style="background:#1a2236; border-bottom:1px solid #21262d; padding:8px 12px;">
+            <div class="d-flex flex-wrap align-items-center gap-2" style="row-gap:6px;">
+              <!-- Type toggles -->
+              <div id="wf-type-toggles" class="d-flex flex-wrap align-items-center mr-2" style="gap:4px;">
+                <span class="small mr-1" style="color:#8b949e;white-space:nowrap">Type:</span>
+                <span class="badge lf-type-badge" data-type="Beacon"   onclick="toggleWfType('Beacon')"   style="background:#3b82f6;cursor:pointer;user-select:none">Beacon</span>
+                <span class="badge lf-type-badge" data-type="Probe Req" onclick="toggleWfType('Probe Req')" style="background:#8b5cf6;cursor:pointer;user-select:none">Probe Req</span>
+                <span class="badge lf-type-badge" data-type="Probe Resp" onclick="toggleWfType('Probe Resp')" style="background:#8b5cf6;cursor:pointer;user-select:none">Probe Resp</span>
+                <span class="badge lf-type-badge" data-type="Auth"      onclick="toggleWfType('Auth')"      style="background:#f59e0b;cursor:pointer;user-select:none">Auth</span>
+                <span class="badge lf-type-badge" data-type="Assoc Req" onclick="toggleWfType('Assoc Req')" style="background:#f59e0b;cursor:pointer;user-select:none">Assoc</span>
+                <span class="badge lf-type-badge" data-type="Deauth"    onclick="toggleWfType('Deauth')"    style="background:#ef4444;cursor:pointer;user-select:none">Deauth</span>
+                <span class="badge lf-type-badge" data-type="Disassoc"  onclick="toggleWfType('Disassoc')"  style="background:#ef4444;cursor:pointer;user-select:none">Disassoc</span>
+                <span class="badge lf-type-badge" data-type="Data"      onclick="toggleWfType('Data')"      style="background:#10b981;cursor:pointer;user-select:none">Data</span>
+              </div>
+              <!-- MAC search -->
+              <input id="wfMacSearch" type="text" placeholder="src/dst MAC…"
+                     oninput="onWfMacSearch()"
+                     style="width:140px;background:#0d1117;border:1px solid #374151;color:#e2e8f0;border-radius:4px;padding:2px 7px;font-size:0.78rem;font-family:monospace;">
+              <!-- Info / SSID search -->
+              <input id="wfInfoSearch" type="text" placeholder="SSID / info…"
+                     oninput="onWfInfoSearch()"
+                     style="width:130px;background:#0d1117;border:1px solid #374151;color:#e2e8f0;border-radius:4px;padding:2px 7px;font-size:0.78rem;">
+              <!-- Min signal -->
+              <label style="color:#8b949e;font-size:0.78rem;white-space:nowrap;margin:0;">
+                Min sig
+                <input id="wfMinSignal" type="number" min="-100" max="-10" placeholder="-100"
+                       oninput="onWfMinSignal()"
+                       style="width:62px;background:#0d1117;border:1px solid #374151;color:#e2e8f0;border-radius:4px;padding:2px 5px;font-size:0.78rem;margin-left:3px;">
+                dBm
+              </label>
+              <!-- Hide random -->
+              <label style="color:#8b949e;font-size:0.78rem;white-space:nowrap;margin:0;cursor:pointer;">
+                <input id="wfHideRandom" type="checkbox" onchange="onWfHideRandom()" style="margin-right:3px;">
+                Hide random MACs
+              </label>
+              <!-- Clear filters -->
+              <button class="btn btn-sm btn-outline-secondary" onclick="clearWfFilters()" style="font-size:0.72rem;padding:1px 7px;">Clear filters</button>
+            </div>
+          </div>
+          <!-- Column headers -->
+          <div class="card-header" style="background:#161b22; border-bottom:1px solid #21262d; padding:6px 12px;">
+            <div class="d-flex align-items-center" style="font-family:monospace; font-size:0.8rem; color:#8b949e;">
+              <span style="width:90px">TIME</span>
+              <span style="width:130px">TYPE</span>
+              <span style="width:145px">SRC MAC</span>
+              <span style="width:145px">DST MAC</span>
+              <span style="width:55px">SIG</span>
+              <span style="width:45px">CH</span>
+              <span>INFO</span>
+            </div>
+          </div>
+          <div id="livefeed-output"
+               style="height:65vh; overflow-y:auto; font-family:'JetBrains Mono','Fira Mono',monospace; font-size:0.78rem; padding:0; background:#0d1117; scroll-behavior:smooth;">
+            <div id="livefeed-placeholder" style="padding:40px; text-align:center; color:#484f58;">
+              <i class="fas fa-satellite-dish fa-3x mb-3"></i>
+              <p>Waiting for packets&hellip; Navigate to the Wi-Fi monitor with an active interface to start capturing.</p>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- BT/BLE LIVE FEED -->
+    <div id="section-btlivefeed" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid">
+        <div class="d-flex align-items-center justify-content-between">
+          <h1 class="m-0"><i class="fab fa-bluetooth-b mr-2" style="color:#8b5cf6"></i>Bluetooth Live Feed</h1>
+          <div class="d-flex align-items-center">
+            <div class="btn-group btn-group-sm mr-3" id="btfeed-filter-group">
+              <button class="btn btn-primary active" onclick="setBtFeedFilter('all')">All</button>
+              <button class="btn btn-outline-secondary" onclick="setBtFeedFilter('bt')">BT Classic</button>
+              <button class="btn btn-outline-secondary" onclick="setBtFeedFilter('ble')">BLE</button>
+            </div>
+            <button id="btfeed-pause-btn" class="btn btn-sm btn-warning mr-2" onclick="toggleBtFeedPause()">
+              <i class="fas fa-pause mr-1"></i>Pause
+            </button>
+            <button class="btn btn-sm btn-danger mr-2" onclick="clearBtFeed()">
+              <i class="fas fa-trash mr-1"></i>Clear
+            </button>
+            <span class="badge badge-secondary" id="btfeed-count-badge" style="font-size:0.85rem">0 evts</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="card" style="background:#0d1117; border:1px solid #21262d;">
+          <!-- Filter bar -->
+          <div class="card-header" style="background:#1a2236; border-bottom:1px solid #21262d; padding:8px 12px;">
+            <div class="d-flex flex-wrap align-items-center" style="gap:8px;row-gap:6px;">
+              <!-- Event type toggles -->
+              <div id="bt-type-toggles" class="d-flex flex-wrap align-items-center mr-2" style="gap:4px;">
+                <span class="small mr-1" style="color:#8b949e;white-space:nowrap">Type:</span>
+                <span class="badge lf-type-badge" data-type="Discovered"    onclick="toggleBtType('Discovered')"    style="background:#8b5cf6;cursor:pointer;user-select:none">Discovered</span>
+                <span class="badge lf-type-badge" data-type="Advertisement" onclick="toggleBtType('Advertisement')" style="background:#06b6d4;cursor:pointer;user-select:none">Advertisement</span>
+                <span class="badge lf-type-badge" data-type="iBeacon"       onclick="toggleBtType('iBeacon')"       style="background:#f59e0b;cursor:pointer;user-select:none">iBeacon</span>
+                <span class="badge lf-type-badge" data-type="Eddystone-URL" onclick="toggleBtType('Eddystone-URL')" style="background:#10b981;cursor:pointer;user-select:none">Eddystone-URL</span>
+                <span class="badge lf-type-badge" data-type="Eddystone-UID" onclick="toggleBtType('Eddystone-UID')" style="background:#10b981;cursor:pointer;user-select:none">Eddystone-UID</span>
+              </div>
+              <!-- Search -->
+              <input id="btSearch" type="text" placeholder="MAC / name / vendor…"
+                     oninput="onBtSearch()"
+                     style="width:175px;background:#0d1117;border:1px solid #374151;color:#e2e8f0;border-radius:4px;padding:2px 7px;font-size:0.78rem;font-family:monospace;">
+              <!-- Min RSSI -->
+              <label style="color:#8b949e;font-size:0.78rem;white-space:nowrap;margin:0;">
+                Min RSSI
+                <input id="btMinRssi" type="number" min="-100" max="-10" placeholder="-100"
+                       oninput="onBtMinRssi()"
+                       style="width:62px;background:#0d1117;border:1px solid #374151;color:#e2e8f0;border-radius:4px;padding:2px 5px;font-size:0.78rem;margin-left:3px;">
+                dBm
+              </label>
+              <!-- Hide random -->
+              <label style="color:#8b949e;font-size:0.78rem;white-space:nowrap;margin:0;cursor:pointer;">
+                <input id="btHideRandom" type="checkbox" onchange="onBtHideRandom()" style="margin-right:3px;">
+                Hide random MACs
+              </label>
+              <!-- Clear filters -->
+              <button class="btn btn-sm btn-outline-secondary" onclick="clearBtFilters()" style="font-size:0.72rem;padding:1px 7px;">Clear filters</button>
+            </div>
+          </div>
+          <!-- Column headers -->
+          <div class="card-header" style="background:#161b22; border-bottom:1px solid #21262d; padding:6px 12px;">
+            <div class="d-flex align-items-center" style="font-family:monospace; font-size:0.8rem; color:#8b949e;">
+              <span style="width:90px">TIME</span>
+              <span style="width:120px">TYPE</span>
+              <span style="width:150px">MAC</span>
+              <span style="width:150px">NAME</span>
+              <span style="width:130px">VENDOR</span>
+              <span style="width:55px">RSSI</span>
+              <span>INFO</span>
+            </div>
+          </div>
+          <div id="btfeed-output"
+               style="height:65vh; overflow-y:auto; font-family:'JetBrains Mono','Fira Mono',monospace; font-size:0.78rem; padding:0; background:#0d1117; scroll-behavior:smooth;">
+            <div id="btfeed-placeholder" style="padding:40px; text-align:center; color:#484f58;">
+              <i class="fab fa-bluetooth-b fa-3x mb-3"></i>
+              <p>Waiting for events&hellip; Requires an active Bluetooth Classic or BLE interface.</p>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="section-settings" class="dw-section d-none">
+      <div class="content-header"><div class="container-fluid"><h1 class="m-0">Settings</h1></div></div>
+      <div class="content"><div class="container-fluid">
+        <div class="row">
+
+          <!-- Interfaces -->
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fas fa-network-wired mr-2"></i>Interfaces</h3></div>
+              <div class="card-body" id="settings-interfaces-panel">
+                <p class="text-muted">Loading…</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Wi-Fi / Channel Hopping -->
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fas fa-wifi mr-2"></i>Wi-Fi / Channel Hopping</h3></div>
+              <div class="card-body" id="settings-wifi-panel">
+                <p class="text-muted">Loading…</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="row">
+
+          <!-- Data Retention -->
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fas fa-database mr-2"></i>Data Retention</h3></div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label>Delete devices inactive for more than <strong><span id="cleanupHoursVal">24</span> h</strong></label>
+                  <input type="range" class="form-control-range" id="cleanupHoursSlider"
+                         min="1" max="168" step="1" value="24"
+                         oninput="document.getElementById('cleanupHoursVal').innerText=this.value">
+                  <small class="form-text text-muted">Range: 1 h – 168 h (1 week)</small>
+                </div>
+                <button class="btn btn-warning btn-sm" onclick="runCleanup()">
+                  <i class="fas fa-broom mr-1"></i>Run Cleanup Now
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Analytics -->
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fas fa-chart-pie mr-2"></i>Analytics</h3></div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label>Entity affinity threshold: <strong><span id="settingsThresholdVal">0.40</span></strong></label>
+                  <input type="range" class="form-control-range" id="settingsThresholdSlider"
+                         min="0.05" max="0.95" step="0.05" value="0.40"
+                         oninput="handleSettingsThreshold(this.value)">
+                  <small class="form-text text-muted">Lower = more entities merged; higher = stricter grouping</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="row">
+
+          <!-- Vendor API -->
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fas fa-cloud mr-2"></i>Vendor API</h3></div>
+              <div class="card-body" id="settings-api-panel">
+                <p class="text-muted">Loading…</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- UI Preferences -->
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i class="fas fa-sliders-h mr-2"></i>UI Preferences</h3></div>
+              <div class="card-body">
+                <div class="form-check mb-3">
+                  <input type="checkbox" class="form-check-input" id="settingsNightMode"
+                         onchange="onSettingsNightChange(this.checked)">
+                  <label class="form-check-label" for="settingsNightMode">Night Mode</label>
+                </div>
+                <div class="form-group">
+                  <label>Table rows per page: <strong><span id="settingsPageLenVal">25</span></strong></label>
+                  <input type="range" class="form-control-range" id="settingsPageLenSlider"
+                         min="10" max="100" step="5" value="25"
+                         oninput="handleSettingsPageLen(this.value)">
+                </div>
+                <div class="form-group mb-0">
+                  <label>Auto-refresh interval: <strong><span id="settingsRefreshVal">60</span> s</strong></label>
+                  <input type="range" class="form-control-range" id="settingsRefreshSlider"
+                         min="15" max="300" step="15" value="60"
+                         oninput="handleSettingsRefresh(this.value)">
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div></div>
+    </div>
+
+  </div>
+  <!-- /.content-wrapper -->
+
+  <footer class="main-footer">
+    <strong>DeviceWatcher</strong> &mdash; Network monitoring dashboard
+  </footer>
+
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-danger">
+        <h5 class="modal-title text-white"><i class="fas fa-trash mr-2"></i>Delete Device</h5>
+        <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        Remove <strong id="deleteModalType"></strong> device<br>
+        <code id="deleteModalMac"></code><br>from the database?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm" id="deleteModalConfirm">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rename Entity modal -->
+<div class="modal fade" id="renameEntityModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white"><i class="fas fa-edit mr-2"></i>Rename Entity</h5>
+        <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="renameEntityId">
+        <div class="form-group">
+            <label>Entity Name</label>
+            <input type="text" class="form-control" id="renameEntityName" placeholder="e.g. John's Devices">
+            <small class="form-text text-muted">Leave blank to revert to default.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="submitRenameEntity()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='adminlte/plugins/jquery/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables/jquery.dataTables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/js/adminlte.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/vis-4.21.0.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/chart-4.4.7.umd.min.js') }}"></script>
+<script src="//unpkg.com/3d-force-graph"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
 </html>

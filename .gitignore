@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# DeviceWatcher runtime data
+device_watcher_data.db
+device_watcher_data.db-journal
+device_watcher_data.db-wal
+device_watcher_data.db-shm
+*.log
+*.db
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Claude Code local state
+.claude/
+
+# Doxygen generated output
+docs/html/
+docs/latex/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+data/*.db
+data/*.db-wal
+data/*.db-shm

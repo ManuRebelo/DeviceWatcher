@@ -1,0 +1,21 @@
+services:
+  devicewatcher:
+    build:
+      context: .
+      network: host
+    container_name: devicewatcher
+    # Privileged is required for scapy to sniff and iw to change channels
+    privileged: true
+    # Host networking is required to access the host's Bluetooth/Wi-Fi stacks
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      # Mount a directory (not a bare file) so Docker never accidentally creates
+      # a directory at the DB path, which would cause SQLite to fail on startup.
+      - ./data:/app/data
+      # Bleak needs the host's D-Bus socket to talk to BlueZ for BLE scanning.
+      - /var/run/dbus:/var/run/dbus
+    environment:
+      - DEVICEWATCHER_TOKEN=${DEVICEWATCHER_TOKEN:-}
+    # Example command to enable all monitors
+    # command: --wifi wlan1mon --bt 0 --ble 0
